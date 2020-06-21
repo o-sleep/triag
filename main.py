@@ -13,49 +13,95 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
 
-def coord(orig, side, aim) -> [(), (), ()]:
+def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
     """ Return the coordinates of a equalateral triangle based on the origin
     length of a side and aim of where the triangle should point at.
         
-    >>> coord((5,5), 5, 90)
-    [(3, 2), (0, 1), (0, 3)]
+    #>>> coord((5,5), 5, 90)
+    #[(3, 2), (0, 1), (0, 3)]
     """
-    orig = (side // 2, side // 2)
+    # "Triangle", with title case, refers to the triangle this function returns
+    # the vertices for.
 
-    h = side / 3
-    x = int(math.sin(math.radians(aim)) * h)
-    y = int(math.cos(math.radians(aim)) * h)
+    # coord() is using cartesian coordinates but with the assumption that the
+    # vertical axis (i.e. y) is flipped and offset by centroid since pygame
+    # puts (0,0) in the upperleft hand corner.
+
+    # h is our hypoteneuse between the origin and the point on Triangle
+    # closest to the direction we are aiming at.
+    h = median
+
+    # The directional vertex.  It's the closest vertex in the
+    # direction of aim degrees (given y is inverted).
+    x1 = int(math.sin(math.radians(aim)) * h)
+    y1 = int(math.cos(math.radians(aim)) * h)
     
-    angle3 = 90 - aim - 30
+    # We are creating an equalateral triangle, we can assume all corners
+    # are 60 deg.  Another triangle bounded by h, (x1, x2), the centroid,
+    # and a line that is perpendicular to the vertical axis helps us find the
+    # vertices of the Triangle.
+    
+    # This was necessary to find the directional vertex.  To find the other
+    # vertices of the equalateral Triangle, we are subtracting the known
+    # angles from 180, the sum of all angles in a triangle.  The remaining
+    # angle bounds a right triangle outside of Triangle that share a vertex
+    # with Triangle.
+
+    # known angles are:
+    #   1. 90 angle where we intersect the origin
+    #   2. 30 angle which is half of one angle in an equalateral triangle
+    #   3. aim
+    angle3 = 180 - 90 - 30 - aim
+
+    # Now that we know this angle, we know that the other right triangle on the
+    # other side of Triangle, will share the other vertex of Triangle.  That 
+    # angle added to angle3 and the corner of our equalateral Triangle should
+    # add up to 90 deg.
     angle2 = 90 - 60 - angle3
 
-    triangle_side = math.cos(math.radians(30)) * h * 2
-    logging.debug('{} {} {}'.format(angle3, angle2, triangle_side))
+    # The triangle_side is the actual length of one side of Triangle.
+    triangle_side = int(math.cos(math.radians(30)) * h * 2)
+    logging.debug('triside: {} {} {}'
+        .format(angle3, angle2, triangle_side))
 
-    x2 = int(math.sin(math.radians(angle2)) * triangle_side)
-    y2 = int(math.cos(math.radians(angle2)) * triangle_side)
+    # vertex of one side of Triangle
+    #x2 = int(math.cos(math.radians(angle2)) * triangle_side)
+    #y2 = int(math.sin(math.radians(angle2)) * triangle_side)
+    x2 = int(math.sin(math.radians(angle2)) * h)
+    y2 = int(math.cos(math.radians(angle2)) * h)
 
-    x3 = int(math.cos(math.radians(angle3)) * triangle_side)
-    y3 = int(math.sin(math.radians(angle3)) * triangle_side)
+    # vertex of the other side of Triangle
+    x3 = int(math.cos(math.radians(angle3)) * h)
+    y3 = int(math.sin(math.radians(angle3)) * h)
+    #x3 = int(math.cos(math.radians(angle3)) * triangle_side)
+    #y3 = int(math.sin(math.radians(angle3)) * triangle_side)
 
-    a = (orig[0] + x, orig[1] + y)
-    b = (orig[0] - x2, orig[1] - y2)
-    c = (orig[0] - x3, orig[1] - y3)
+    logging.debug('c: {} x,y: {} {} {}'
+        .format(centroid, (x1, y1), (x2, y2), (x3, y3)))
+    logging.debug('hypots: {} {} {}'
+        .format(math.hypot(x1, y1), math.hypot(x2, y2), math.hypot(x3, y3)))
 
-    logging.debug('coord: {} {}, {} {} {}'.format(x, y, a, b, c))
+    #a = (centroid[0] + x1, centroid[1] + y1)
+    #b = (centroid[0] + x2, centroid[1] + y2)
+    #c = (centroid[0] + x3, centroid[1] + y3)
+    a = (centroid[0] + x1, centroid[1] + y1)
+    b = (centroid[0] - x2, centroid[1] - y2)
+    c = (centroid[0] - x3, centroid[1] - y3)
 
+    logging.debug('coord: {} {} {}'
+        .format(a, b, c))
     return [a, b, c]
 
 
 class Triangle(pygame.sprite.Sprite):
-    """ The Triangle Class represents the player or computer bot
+    """ The Triangle Class represents the player or computer bot.
 
     """
 
     def __init__(self, loc, aim, color):
         super().__init__()
         self.side = 30
-        self.orig = (self.side // 2, self.side // 2)
+        self.centroid = (self.side // 2, self.side // 2)
         self.speed = 10
         self.turn = 5
 
@@ -69,34 +115,38 @@ class Triangle(pygame.sprite.Sprite):
 
         self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
-            coord(self.orig, self.side, aim), 1)
+            coord(self.centroid, self.side // 3, aim), 1)
 
     def left(self):
         self.aim += self.turn
         self.aim %= 360
-        logging.debug('aim l: {}'.format(self.aim))
+        logging.debug('aim l: {}'
+            .format(self.aim))
         self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
-            coord(self.orig, self.side, self.aim), 1)
+            coord(self.centroid, self.side // 3, self.aim), 1)
         
     def right(self):
         self.aim -= self.turn
         self.aim %= 360
-        logging.debug('aim r: {}'.format(self.aim))
+        logging.debug('aim r: {}'
+            .format(self.aim))
         self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
-            coord(self.orig, self.side, self.aim), 1)
+            coord(self.centroid, self.side // 3, self.aim), 1)
     
     def forward(self):
         x = math.sin(math.radians(self.aim)) * self.speed
         y = math.cos(math.radians(self.aim)) * self.speed
-        logging.debug('move for: {} {} in {}'.format(x, y, self.aim))
+        logging.debug('move for: {} {} in {}'
+            .format(x, y, self.aim))
         self.rect.move_ip(x, y)
 
     def backward(self):
         x = -math.sin(math.radians(self.aim)) * self.speed
         y = -math.cos(math.radians(self.aim)) * self.speed
-        logging.debug("move back: {} {} in {}".format(x, y, self.aim))
+        logging.debug("move back: {} {} in {}"
+            .format(x, y, self.aim))
         self.rect.move_ip(x, y)
 
     def tag(self):
@@ -114,7 +164,8 @@ class PlayerEvent():
 
         elif pygame.KEYDOWN == event.type:
             if event.key in key_map.keys():
-                logging.debug('found key: {}'.format(event.key))
+                logging.debug('found key: {}'
+                    .format(event.key))
                 self.keys_down[event.key] = True
                 key_map[event.key]()
 
@@ -136,7 +187,8 @@ def main():
     main_dir = os.path.split(os.path.abspath(__file__))[0]
     data_dir = os.path.join(main_dir, "data")
 
-    logging.info('sdl_version: {}'.format(pygame.get_sdl_version()))
+    logging.info('sdl_version: {}'
+        .format(pygame.get_sdl_version()))
 
     pygame.init()
     surface = pygame.display.set_mode((800, 600))
@@ -167,7 +219,8 @@ def main():
         player_event.call_keys_down(key_map)
 
         for event in pygame.event.get():
-            logging.debug('event: {}'.format(event))
+            logging.debug('event: {}'
+                .format(event))
             player_event.handle(event, key_map)
 
         all_sprites.draw(surface)
