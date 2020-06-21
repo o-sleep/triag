@@ -1,28 +1,16 @@
+import logging
 import math
 import os
 import sys
 import time
-
 import pygame
 
-main_dir = os.path.split(os.path.abspath(__file__))[0]
-data_dir = os.path.join(main_dir, "data")
 
 BLUE  = (0, 0, 255)
 RED   = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-
-print('sdl_version: {}'.format(pygame.get_sdl_version()))
-
-pygame.init()
-surface = pygame.display.set_mode((800, 600))
-clock = pygame.time.Clock()
-
-surface.fill(WHITE)
-background = pygame.image.load(os.path.join(data_dir, 'ancient dice.jpg'))
-background = background.convert()
 
 
 def coord(orig, side, aim) -> [(), (), ()]:
@@ -42,7 +30,7 @@ def coord(orig, side, aim) -> [(), (), ()]:
     angle2 = 90 - 60 - angle3
 
     triangle_side = math.cos(math.radians(30)) * h * 2
-    #print('{} {} {}'.format(angle3, angle2, triangle_side))
+    logging.debug('{} {} {}'.format(angle3, angle2, triangle_side))
 
     x2 = int(math.sin(math.radians(angle2)) * triangle_side)
     y2 = int(math.cos(math.radians(angle2)) * triangle_side)
@@ -54,11 +42,16 @@ def coord(orig, side, aim) -> [(), (), ()]:
     b = (orig[0] - x2, orig[1] - y2)
     c = (orig[0] - x3, orig[1] - y3)
 
-    #rint('coord: {} {}, {} {} {}'.format(x, y, a, b, c))
+    logging.debug('coord: {} {}, {} {} {}'.format(x, y, a, b, c))
 
     return [a, b, c]
 
+
 class Triangle(pygame.sprite.Sprite):
+    """ The Triangle Class represents the player or computer bot
+
+    """
+
     def __init__(self, loc, aim, color):
         super().__init__()
         self.side = 30
@@ -74,10 +67,6 @@ class Triangle(pygame.sprite.Sprite):
         self.image = pygame.Surface([self.side, self.side])
         self.rect = self.image.get_rect(center=loc)
 
-        #self.a = (loc[0], loc[1]-self.side//2)
-        #self.b = (loc[0]-self.side//2, loc[1]-self.side//2)
-        #self.c = (loc[0]-self.side//2, loc[1])
-        #self.coord = [self.a, self.b, self.c]
         self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
             coord(self.orig, self.side, aim), 1)
@@ -85,16 +74,15 @@ class Triangle(pygame.sprite.Sprite):
     def left(self):
         self.aim += self.turn
         self.aim %= 360
-        print('aim l: {}'.format(self.aim))
+        logging.debug('aim l: {}'.format(self.aim))
         self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
             coord(self.orig, self.side, self.aim), 1)
         
-
     def right(self):
         self.aim -= self.turn
         self.aim %= 360
-        print('aim r: {}'.format(self.aim))
+        logging.debug('aim r: {}'.format(self.aim))
         self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
             coord(self.orig, self.side, self.aim), 1)
@@ -102,17 +90,18 @@ class Triangle(pygame.sprite.Sprite):
     def forward(self):
         x = math.sin(math.radians(self.aim)) * self.speed
         y = math.cos(math.radians(self.aim)) * self.speed
-        print('move for: {} {} in {}'.format(x, y, self.aim))
+        logging.debug('move for: {} {} in {}'.format(x, y, self.aim))
         self.rect.move_ip(x, y)
 
     def backward(self):
         x = -math.sin(math.radians(self.aim)) * self.speed
         y = -math.cos(math.radians(self.aim)) * self.speed
-        print("move back: {} {} in {}".format(x, y, self.aim))
+        logging.debug("move back: {} {} in {}".format(x, y, self.aim))
         self.rect.move_ip(x, y)
 
     def tag(self):
         pass
+
 
 class PlayerEvent():
     def __init__(self, ):
@@ -125,7 +114,7 @@ class PlayerEvent():
 
         elif pygame.KEYDOWN == event.type:
             if event.key in key_map.keys():
-                print('found key: {}'.format(event.key))
+                logging.debug('found key: {}'.format(event.key))
                 self.keys_down[event.key] = True
                 key_map[event.key]()
 
@@ -137,11 +126,26 @@ class PlayerEvent():
         for key in self.keys_down:
             key_map[key]()
 
+
 def _test():
     import doctest
-    doctest.testmod(raise_on_error=True, report=True)
+    doctest.testmod(raise_on_error=True, verbose=True, report=True)
+
 
 def main():
+    main_dir = os.path.split(os.path.abspath(__file__))[0]
+    data_dir = os.path.join(main_dir, "data")
+
+    logging.info('sdl_version: {}'.format(pygame.get_sdl_version()))
+
+    pygame.init()
+    surface = pygame.display.set_mode((800, 600))
+    clock = pygame.time.Clock()
+
+    surface.fill(WHITE)
+    background = pygame.image.load(os.path.join(data_dir, 'ancient dice.jpg'))
+    background = background.convert()
+
     playerOne = Triangle((30,30), 30, RED)
 
     key_map = {
@@ -163,12 +167,15 @@ def main():
         player_event.call_keys_down(key_map)
 
         for event in pygame.event.get():
-            print('Event: {}'.format(event))
+            logging.debug('event: {}'.format(event))
             player_event.handle(event, key_map)
 
         all_sprites.draw(surface)
         pygame.display.update()
 
+
 if __name__ == "__main__":
+    logging.basicConfig(level = logging.DEBUG if __debug__ else logging.INFO)
+
     _test()
     main()
