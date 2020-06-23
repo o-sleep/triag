@@ -205,7 +205,12 @@ def main():
         pygame.K_DOWN: playerOne.backward,
         pygame.K_RIGHT: playerOne.right,
         pygame.K_LEFT: playerOne.left,
-        pygame.K_RCTRL: playerOne.tag
+        pygame.K_RCTRL: playerOne.tag,
+        pygame.K_w: playerOne.forward,
+        pygame.K_s: playerOne.backward,
+        pygame.K_d: playerOne.right,
+        pygame.K_a: playerOne.left,
+        pygame.K_SPACE: playerOne.tag
     }
 
     all_sprites = pygame.sprite.Group()
