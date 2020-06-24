@@ -199,6 +199,7 @@ def main():
     background = background.convert()
 
     playerOne = Triangle((30,30), 30, RED)
+    playerTwo = Triangle((60,60), 30, BLUE)
 
     key_map = {
         pygame.K_UP: playerOne.forward,
@@ -206,15 +207,16 @@ def main():
         pygame.K_RIGHT: playerOne.right,
         pygame.K_LEFT: playerOne.left,
         pygame.K_RCTRL: playerOne.tag,
-        pygame.K_w: playerOne.forward,
-        pygame.K_s: playerOne.backward,
-        pygame.K_d: playerOne.right,
-        pygame.K_a: playerOne.left,
-        pygame.K_SPACE: playerOne.tag
+        pygame.K_w: playerTwo.forward,
+        pygame.K_s: playerTwo.backward,
+        pygame.K_d: playerTwo.right,
+        pygame.K_a: playerTwo.left,
+        pygame.K_SPACE: playerTwo.tag
     }
 
     all_sprites = pygame.sprite.Group()
     all_sprites.add(playerOne)
+    all_sprites.add(playerTwo)
     player_event = PlayerEvent()
 
     while True:
