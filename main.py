@@ -6,11 +6,14 @@ import time
 import pygame
 
 
-BLUE  = (0, 0, 255)
-RED   = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
+BLUE  = (0, 0, 255, 255)
+RED   = (255, 0, 0, 255)
+GREEN = (0, 255, 0, 255)
+BLACK = (0, 0, 0, 255)
+WHITE = (255, 255, 255, 255)
+TRANSPARENT = (255, 255, 255, 0)
+ALL_SPRITES = None
+TAGGED_SPRITES = None
 
 
 def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
@@ -110,10 +113,9 @@ class Triangle(pygame.sprite.Sprite):
         self.aim = aim
         self.color = color
 
-        self.image = pygame.Surface([self.side, self.side])
+        self.image = pygame.Surface([self.side, self.side], pygame.SRCALPHA)
         self.rect = self.image.get_rect(center=loc)
 
-        self.image.fill(WHITE)
         pygame.draw.polygon(self.image, self.color,
             coord(self.centroid, self.side // 3, aim), 1)
 
@@ -122,7 +124,7 @@ class Triangle(pygame.sprite.Sprite):
         self.aim %= 360
         logging.debug('aim l: {}'
             .format(self.aim))
-        self.image.fill(WHITE)
+        self.image.fill(TRANSPARENT)
         pygame.draw.polygon(self.image, self.color,
             coord(self.centroid, self.side // 3, self.aim), 1)
         
@@ -131,9 +133,9 @@ class Triangle(pygame.sprite.Sprite):
         self.aim %= 360
         logging.debug('aim r: {}'
             .format(self.aim))
-        self.image.fill(WHITE)
+        self.image.fill(TRANSPARENT)
         pygame.draw.polygon(self.image, self.color,
-            coord(self.centroid, self.side // 3, self.aim), 1)
+            coord(self.centroid, self.side // 3, self.aim), 2)
     
     def forward(self):
         x = math.sin(math.radians(self.aim)) * self.speed
@@ -150,7 +152,14 @@ class Triangle(pygame.sprite.Sprite):
         self.rect.move_ip(x, y)
 
     def tag(self):
+        orient = coord(self.centroid, self.side // 3, self.aim)[0]
+        target = (self.rect.x + orient[0], self.rect.y + orient[1])
+        tag = Tag(target, 6, 6, self.color, self.aim, 10, 200)
+        ALL_SPRITES.add(tag)
+
+    def update(self):
         pass
+        #if self in 
 
 
 class PlayerEvent():
@@ -178,6 +187,48 @@ class PlayerEvent():
             key_map[key]()
 
 
+class Tag(pygame.sprite.Sprite):
+    """ The base logic of how one Triangle will Tag another Triangle.  When
+        a Triangle is Tagged, the Tagger gets a point.
+
+    """
+
+    def __init__(self, loc, length, width, color, aim, speed, distance):
+        super().__init__()
+
+        self.loc = loc
+        self.l = length
+        self.w = width
+        self.color = color
+        self.aim = aim
+        self.speed = speed
+        self.distance = distance
+
+        self.progress = 0
+
+        self.image = pygame.Surface([self.l, self.w], pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=loc)
+        pygame.draw.polygon(self.image, color,
+            coord((5, 5), 1, 1), 1)
+
+    def update(self):
+        logging.debug('tag for: {} until {}/{}'
+            .format(self.aim, self.progress, self.distance))
+        
+        if self.progress < self.distance:
+            x = math.sin(math.radians(self.aim)) * self.speed
+            y = math.cos(math.radians(self.aim)) * self.speed
+
+            self.rect.move_ip(x, y)
+            self.progress += self.speed
+        #elif tagged = self.spritecollideany(ALL_SPRITES):
+        #    self.kill()
+        #    del self
+        #    TAGGED_SPRITES.append(tagged)
+        else:
+            self.kill()
+            del self
+
 def _test():
     import doctest
     doctest.testmod(raise_on_error=True, verbose=True, report=True)
@@ -191,6 +242,7 @@ def main():
         .format(pygame.get_sdl_version()))
 
     pygame.init()
+
     surface = pygame.display.set_mode((800, 600))
     clock = pygame.time.Clock()
 
@@ -213,11 +265,15 @@ def main():
         pygame.K_a: playerTwo.left,
         pygame.K_SPACE: playerTwo.tag
     }
-
-    all_sprites = pygame.sprite.Group()
-    all_sprites.add(playerOne)
-    all_sprites.add(playerTwo)
+ 
+    global ALL_SPRITES
+    ALL_SPRITES = pygame.sprite.Group()
+    ALL_SPRITES.add(playerOne)
+    ALL_SPRITES.add(playerTwo)
     player_event = PlayerEvent()
+
+    global TAGGED_SPRITES
+    TAGGED_SPRITES = pygame.sprite.Group()
 
     while True:
         clock.tick(60)
@@ -230,7 +286,8 @@ def main():
                 .format(event))
             player_event.handle(event, key_map)
 
-        all_sprites.draw(surface)
+        ALL_SPRITES.update()
+        ALL_SPRITES.draw(surface)
         pygame.display.update()
 
 
