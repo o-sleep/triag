@@ -12,16 +12,21 @@ GREEN = (0, 255, 0, 255)
 BLACK = (0, 0, 0, 255)
 WHITE = (255, 255, 255, 255)
 TRANSPARENT = (255, 255, 255, 0)
-ALL_SPRITES = None
-TAGGED_SPRITES = None
+ALL_SPRITES = pygame.sprite.Group()
+TAGGED_SPRITES = pygame.sprite.Group()
+TAG_SPRITES = pygame.sprite.Group()
+TRIANGLE_SPRITES = pygame.sprite.Group()
+SCORE = {}
+HEIGHT=600
+WIDTH=600
 
 
 def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
-    """ Return the coordinates of a equalateral triangle based on the origin
+    """ Return the coordinates of a triangle based on the origin
     length of a side and aim of where the triangle should point at.
         
-    #>>> coord((5,5), 5, 90)
-    #[(3, 2), (0, 1), (0, 3)]
+    >>> coord((5,5), 5, 90)
+    [(10, 5), (1, 3), (1, 7)]
     """
     # "Triangle", with title case, refers to the triangle this function returns
     # the vertices for.
@@ -96,72 +101,6 @@ def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
     return [a, b, c]
 
 
-class Triangle(pygame.sprite.Sprite):
-    """ The Triangle Class represents the player or computer bot.
-
-    """
-
-    def __init__(self, loc, aim, color):
-        super().__init__()
-        self.side = 30
-        self.centroid = (self.side // 2, self.side // 2)
-        self.speed = 10
-        self.turn = 5
-
-
-        self.loc = loc
-        self.aim = aim
-        self.color = color
-
-        self.image = pygame.Surface([self.side, self.side], pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=loc)
-
-        pygame.draw.polygon(self.image, self.color,
-            coord(self.centroid, self.side // 3, aim), 1)
-
-    def left(self):
-        self.aim += self.turn
-        self.aim %= 360
-        logging.debug('aim l: {}'
-            .format(self.aim))
-        self.image.fill(TRANSPARENT)
-        pygame.draw.polygon(self.image, self.color,
-            coord(self.centroid, self.side // 3, self.aim), 1)
-        
-    def right(self):
-        self.aim -= self.turn
-        self.aim %= 360
-        logging.debug('aim r: {}'
-            .format(self.aim))
-        self.image.fill(TRANSPARENT)
-        pygame.draw.polygon(self.image, self.color,
-            coord(self.centroid, self.side // 3, self.aim), 2)
-    
-    def forward(self):
-        x = math.sin(math.radians(self.aim)) * self.speed
-        y = math.cos(math.radians(self.aim)) * self.speed
-        logging.debug('move for: {} {} in {}'
-            .format(x, y, self.aim))
-        self.rect.move_ip(x, y)
-
-    def backward(self):
-        x = -math.sin(math.radians(self.aim)) * self.speed
-        y = -math.cos(math.radians(self.aim)) * self.speed
-        logging.debug("move back: {} {} in {}"
-            .format(x, y, self.aim))
-        self.rect.move_ip(x, y)
-
-    def tag(self):
-        orient = coord(self.centroid, self.side // 3, self.aim)[0]
-        target = (self.rect.x + orient[0], self.rect.y + orient[1])
-        tag = Tag(target, 6, 6, self.color, self.aim, 10, 200)
-        ALL_SPRITES.add(tag)
-
-    def update(self):
-        pass
-        #if self in 
-
-
 class PlayerEvent():
     def __init__(self, ):
         self.keys_down = {}
@@ -187,6 +126,96 @@ class PlayerEvent():
             key_map[key]()
 
 
+class Triangle(pygame.sprite.Sprite):
+    """ The Triangle Class represents the player or computer bot.
+
+    """
+
+    def __init__(self, loc, aim, color, name):
+        super().__init__()
+        self.side = 30
+        self.centroid = (self.side // 2, self.side // 2)
+        self.speed = 10
+        self.turn = 5
+
+        self.loc = loc
+        self.aim = aim
+        self.color = color
+        self.respawn = 300
+
+        self.stats = {
+            'fragmented': 0,
+            'tagged': 0
+        }
+        self.name = name
+
+        self.image = pygame.Surface([self.side, self.side], pygame.SRCALPHA)
+        #self.image = pygame.Surface([self.side, self.side])
+        self.rect = self.image.get_rect(center=loc)
+
+        pygame.draw.polygon(self.image, self.color,
+            coord(self.centroid, self.side // 3, aim), 1)
+        TRIANGLE_SPRITES.add(self)
+        ALL_SPRITES.add(self)
+
+    def left(self):
+        self.aim += self.turn
+        self.aim %= 360
+        logging.debug('aim l: {}'
+            .format(self.aim))
+        self.image.fill(TRANSPARENT)
+        pygame.draw.polygon(self.image, self.color,
+            coord(self.centroid, self.side // 3, self.aim), 1)
+        
+    def right(self):
+        self.aim -= self.turn
+        self.aim %= 360
+        logging.debug('aim r: {}'
+            .format(self.aim))
+        self.image.fill(TRANSPARENT)
+        pygame.draw.polygon(self.image, self.color,
+            coord(self.centroid, self.side // 3, self.aim), 1)
+    
+    def forward(self):
+        x = math.sin(math.radians(self.aim)) * self.speed
+        y = math.cos(math.radians(self.aim)) * self.speed
+        logging.debug('move for: {} {} in {}'
+            .format(x, y, self.aim))
+        if self.rect.x + x + 20 < WIDTH \
+            and self.rect.y + y + 10 < HEIGHT \
+            and self.rect.x + x > 0 \
+            and self.rect.y + y > 0:
+
+            self.rect.move_ip(int(x), int(y))
+
+    def backward(self):
+        x = -math.sin(math.radians(self.aim)) * self.speed
+        y = -math.cos(math.radians(self.aim)) * self.speed
+        logging.debug("move back: {} {} in {}"
+            .format(x, y, self.aim))
+        if self.rect.x + x + 20 < WIDTH \
+            and self.rect.y + y + 10 < HEIGHT \
+            and self.rect.x + x > 0 \
+            and self.rect.y + y > 0:
+
+            self.rect.move_ip(int(x), int(y))
+
+    def tag(self):
+        orient = coord(self.centroid, self.side, self.aim)[0]
+        target = (int(self.rect.x + orient[0] * self.rect.x/abs(self.rect.x)),
+            int(self.rect.y + orient[1] * self.rect.y/abs(self.rect.y)))
+        tag = Tag(target, 5, 5, self.color, self.aim, 5, 200)
+
+    def update(self):
+        if self in TAGGED_SPRITES:
+            print('tagged: {}'.format(self.name))
+            if self.respawn < 1:
+                self.kill()
+                TRIANGLE_SPRITES.add(self)
+                ALL_SPRITES.add(self)
+            self.respawn =- 1
+
+
 class Tag(pygame.sprite.Sprite):
     """ The base logic of how one Triangle will Tag another Triangle.  When
         a Triangle is Tagged, the Tagger gets a point.
@@ -206,25 +235,38 @@ class Tag(pygame.sprite.Sprite):
 
         self.progress = 0
 
-        self.image = pygame.Surface([self.l, self.w], pygame.SRCALPHA)
+        self.image = pygame.Surface([length, width], pygame.SRCALPHA)
         self.rect = self.image.get_rect(center=loc)
         pygame.draw.polygon(self.image, color,
-            coord((5, 5), 1, 1), 1)
+            coord((5, 5), 2, aim), 4)
+        TAG_SPRITES.add(self)
+        ALL_SPRITES.add(self)
 
     def update(self):
-        logging.debug('tag for: {} until {}/{}'
-            .format(self.aim, self.progress, self.distance))
+        #logging.debug('tag for: {} until {}/{}'
+        #    .format(self.aim, self.progress, self.distance))
         
+        #tagged = pygame.sprite.spritecollideany(self, ALL_SPRITES)
+        tagged = pygame.sprite.spritecollide(self, TRIANGLE_SPRITES, False)
+        if len(tagged) > 0:
+            #print('Sprite dict: {} {}'.format(tagged, dir(tagged)))
+            for sprite in tagged:
+                SCORE[sprite.name] += 1
+                sprite.kill()
+                #print('sprite: {} {}'.format(sprite.groups(), dir(sprite)))
+                TAGGED_SPRITES.add(sprite)
+                ALL_SPRITES.add(sprite)
+            #self.kill()
+            #del self
+            print('Tagged count is {}'.format(SCORE))
+
+
         if self.progress < self.distance:
             x = math.sin(math.radians(self.aim)) * self.speed
             y = math.cos(math.radians(self.aim)) * self.speed
 
-            self.rect.move_ip(x, y)
+            self.rect.move_ip(int(x), int(y))
             self.progress += self.speed
-        #elif tagged = self.spritecollideany(ALL_SPRITES):
-        #    self.kill()
-        #    del self
-        #    TAGGED_SPRITES.append(tagged)
         else:
             self.kill()
             del self
@@ -243,15 +285,19 @@ def main():
 
     pygame.init()
 
-    surface = pygame.display.set_mode((800, 600))
+    surface = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
 
     surface.fill(WHITE)
     background = pygame.image.load(os.path.join(data_dir, 'ancient dice.jpg'))
     background = background.convert()
 
-    playerOne = Triangle((30,30), 30, RED)
-    playerTwo = Triangle((60,60), 30, BLUE)
+    playerOne = Triangle((60,30), 30, BLUE, 'Bjorn')
+    playerTwo = Triangle((30,60), 30, RED, 'Chloe')
+
+    global SCORE
+    SCORE = { 'Bjorn': 0, 'Chloe': 0 }
+    font = pygame.font.SysFont(None, 24)
 
     key_map = {
         pygame.K_UP: playerOne.forward,
@@ -266,14 +312,7 @@ def main():
         pygame.K_SPACE: playerTwo.tag
     }
  
-    global ALL_SPRITES
-    ALL_SPRITES = pygame.sprite.Group()
-    ALL_SPRITES.add(playerOne)
-    ALL_SPRITES.add(playerTwo)
     player_event = PlayerEvent()
-
-    global TAGGED_SPRITES
-    TAGGED_SPRITES = pygame.sprite.Group()
 
     while True:
         clock.tick(60)
@@ -286,13 +325,19 @@ def main():
                 .format(event))
             player_event.handle(event, key_map)
 
+        bjorn_score = font.render(str(SCORE['Bjorn']), True, BLUE)
+        chloe_score = font.render(str(SCORE['Chloe']), True, RED)
+        surface.blit(bjorn_score, (540, 560))
+        surface.blit(chloe_score, (540, 540))
         ALL_SPRITES.update()
-        ALL_SPRITES.draw(surface)
+        TRIANGLE_SPRITES.draw(surface)
+        TAG_SPRITES.draw(surface)
         pygame.display.update()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level = logging.DEBUG if __debug__ else logging.INFO)
+    #logging.basicConfig(level = logging.DEBUG if __debug__ else logging.INFO)
+    logging.basicConfig(level = logging.INFO)
 
     _test()
     main()
