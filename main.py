@@ -204,7 +204,7 @@ class Triangle(pygame.sprite.Sprite):
         orient = coord(self.centroid, self.side, self.aim)[0]
         target = (int(self.rect.x + orient[0] * self.rect.x/abs(self.rect.x)),
             int(self.rect.y + orient[1] * self.rect.y/abs(self.rect.y)))
-        tag = Tag(target, 5, 5, self.color, self.aim, 5, 200)
+        Tag(target, 5, 5, self.color, self.aim, 5, 200)
 
     def update(self):
         if self in TAGGED_SPRITES:
