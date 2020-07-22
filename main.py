@@ -7,9 +7,9 @@ import time
 import pygame
 
 
-BLUE  = (0, 0, 255, 255)
-RED   = (255, 0, 0, 255)
-GREEN = (0, 255, 0, 255)
+BLUE  = (201, 226, 255, 255)
+RED   = (255, 201, 201, 255)
+GREEN = (201, 255, 223, 255)
 BLACK = (0, 0, 0, 255)
 WHITE = (255, 255, 255, 255)
 TRANSPARENT = (255, 255, 255, 0)
@@ -18,9 +18,10 @@ TAGGED_SPRITES = pygame.sprite.Group()
 TAG_SPRITES = pygame.sprite.Group()
 TRIANGLE_SPRITES = pygame.sprite.Group()
 SCORE = {}
-HEIGHT=300
-WIDTH=600
-BACKGROUND="pink room.png"
+HEIGHT = 300
+WIDTH = 600
+BACKGROUND = "pink room dark.png"
+LOOT = None
 
 
 def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
@@ -161,13 +162,12 @@ class Triangle(pygame.sprite.Sprite):
         }
 
         if loc == None:
-            self.loc = self.start_locations[
-                int(random.random() * len(self.start_locations) + 1)]
+            self.loc = random.choice(list(self.start_locations.values()))
         else:
             self.loc = loc
 
         if aim == None:
-            self.aim = int(random.random() * 360 + 1)
+            self.aim = random.randint(1, 360)
         else:
             self.aim = aim
 
@@ -226,7 +226,8 @@ class Triangle(pygame.sprite.Sprite):
         orient = coord(self.centroid, self.side, self.aim)[0]
         target = (int(self.rect.x + orient[0] * self.rect.x/abs(self.rect.x)),
             int(self.rect.y + orient[1] * self.rect.y/abs(self.rect.y)))
-        Tag(target, 5, 5 * self.border, self.color, self.aim, 5, 200)
+        Tag(target, 5, 5 * self.border, self.color, self.aim, 5, 200, 
+            self.name)
 
     def update(self):
         if self in TAGGED_SPRITES:
@@ -239,8 +240,7 @@ class Triangle(pygame.sprite.Sprite):
         self.kill()
         TRIANGLE_SPRITES.add(self)
         ALL_SPRITES.add(self)
-        self.rect.center = self.start_locations[
-            int(random.random() * len(self.start_locations) + 1)]
+        self.rect.center = random.choice(list(self.start_locations.values()))
 
 class Tag(pygame.sprite.Sprite):
     """ The base logic of how one Triangle will Tag another Triangle.  When
@@ -248,7 +248,7 @@ class Tag(pygame.sprite.Sprite):
 
     """
 
-    def __init__(self, loc, length, width, color, aim, speed, distance):
+    def __init__(self, loc, length, width, color, aim, speed, distance, name):
         super().__init__()
 
         self.loc = loc
@@ -258,6 +258,7 @@ class Tag(pygame.sprite.Sprite):
         self.aim = aim
         self.speed = speed
         self.distance = distance
+        self.name = name
 
         self.progress = 0
 
@@ -272,7 +273,7 @@ class Tag(pygame.sprite.Sprite):
         tagged = pygame.sprite.spritecollide(self, TRIANGLE_SPRITES, False)
         if len(tagged) > 0:
             for sprite in tagged:
-                SCORE[sprite.name] += 1
+                SCORE[self.name] += 1
                 sprite.kill()
                 TAGGED_SPRITES.add(sprite)
                 ALL_SPRITES.add(sprite)
@@ -286,6 +287,15 @@ class Tag(pygame.sprite.Sprite):
         else:
             self.kill()
             del self
+
+class Loot(pygame.sprite.Sprite):
+    """ A random item that appears in a random location yielding a random
+        boost for a Triangle, for a period of time.
+
+    """
+
+    def __init__(self):
+        print("Boost")
 
 
 def _test():
@@ -311,9 +321,10 @@ def main():
 
     playerOne = Triangle(None, None, BLUE, 'Bjorn')
     playerTwo = Triangle(None, None, RED, 'Chloe')
+    playerThree = Triangle(None, None, GREEN, 'Zak')
 
     global SCORE
-    SCORE = { 'Bjorn': 0, 'Chloe': 0 }
+    SCORE = { 'Bjorn': 0, 'Chloe': 0, 'Zak': 0 }
     font = pygame.font.SysFont(None, 24)
 
     key_map = {
@@ -326,7 +337,12 @@ def main():
         pygame.K_s: playerTwo.backward,
         pygame.K_d: playerTwo.right,
         pygame.K_a: playerTwo.left,
-        pygame.K_SPACE: playerTwo.tag
+        pygame.K_x: playerTwo.tag,
+        pygame.K_t: playerThree.forward,
+        pygame.K_g: playerThree.backward,
+        pygame.K_h: playerThree.right,
+        pygame.K_f: playerThree.left,
+        pygame.K_b: playerThree.tag
     }
  
     player_event = PlayerEvent()
@@ -344,8 +360,10 @@ def main():
 
         bjorn_score = font.render(str(SCORE['Bjorn']), True, BLUE)
         chloe_score = font.render(str(SCORE['Chloe']), True, RED)
+        zak_score = font.render(str(SCORE['Zak']), True, GREEN)
         surface.blit(bjorn_score, (540, 260))
         surface.blit(chloe_score, (540, 240))
+        surface.blit(zak_score, (540, 220))
         ALL_SPRITES.update()
         TRIANGLE_SPRITES.draw(surface)
         TAG_SPRITES.draw(surface)
