@@ -4,15 +4,24 @@ import os
 import random
 import sys
 import time
+
 import pygame
+from pygame.locals import *
 
 
-BLUE  = (201, 226, 255, 255)
-RED   = (255, 201, 201, 255)
-GREEN = (201, 255, 223, 255)
-BLACK = (0, 0, 0, 255)
-WHITE = (255, 255, 255, 255)
-TRANSPARENT = (255, 255, 255, 0)
+COLORS = {
+    'BLUE': (201, 226, 255, 255),
+    'RED': (255, 201, 201, 255),
+    'GREEN': (201, 255, 223, 255),
+    'YELLOW': (255, 255, 202, 255),
+    'ORANGE': (255, 242, 202, 255),
+    'PINK': (255, 202, 255, 255),
+    'BLACK': (0, 0, 0, 255),
+    'WHITE': (255, 255, 255, 255),
+    'TRANSPARENT': (255, 255, 255, 0) }
+
+PLAYER_COLORS = [ 'BLUE', 'RED', 'GREEN', 'YELLOW', 'ORANGE', 'PINK']
+
 ALL_SPRITES = pygame.sprite.Group()
 TAGGED_SPRITES = pygame.sprite.Group()
 TAG_SPRITES = pygame.sprite.Group()
@@ -22,6 +31,7 @@ HEIGHT = 300
 WIDTH = 600
 BACKGROUND = "pink room dark.png"
 LOOT = None
+PLAYER_COUNT = 3
 
 
 def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
@@ -123,8 +133,10 @@ class PlayerEvent():
         elif pygame.KEYUP == event.type:
             if event.key in self.keys_down.keys():
                 del self.keys_down[event.key]
-                
+
     def call_keys_down(self, key_map):
+        ''' Sticky keys were disabled to bring feature parity to folks
+        using an ipad over zoom (which doesn't capture keys held down) '''
         #for key in self.keys_down:
         #    key_map[key]()
         pass
@@ -185,19 +197,19 @@ class Triangle(pygame.sprite.Sprite):
         self.aim %= 360
         logging.debug('aim l: {}'
             .format(self.aim))
-        self.image.fill(TRANSPARENT)
+        self.image.fill(COLORS['TRANSPARENT'])
         pygame.draw.polygon(self.image, self.color,
             coord(self.centroid, self.side // 3, self.aim), self.border)
-        
+
     def right(self):
         self.aim -= self.turn
         self.aim %= 360
         logging.debug('aim r: {}'
             .format(self.aim))
-        self.image.fill(TRANSPARENT)
+        self.image.fill(COLORS['TRANSPARENT'])
         pygame.draw.polygon(self.image, self.color,
             coord(self.centroid, self.side // 3, self.aim), self.border)
-    
+
     def forward(self):
         x = math.sin(math.radians(self.aim)) * self.speed
         y = math.cos(math.radians(self.aim)) * self.speed
@@ -315,36 +327,70 @@ def main():
     surface = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
 
-    surface.fill(WHITE)
+    surface.fill(COLORS['WHITE'])
     background = pygame.image.load(os.path.join(data_dir, BACKGROUND))
     background = background.convert()
 
-    playerOne = Triangle(None, None, BLUE, 'Bjorn')
-    playerTwo = Triangle(None, None, RED, 'Chloe')
-    playerThree = Triangle(None, None, GREEN, 'Zak')
+    players = []
+    for i in range(PLAYER_COUNT):
+        players.append(Triangle(None, None, COLORS[PLAYER_COLORS[i]], i))
 
     global SCORE
-    SCORE = { 'Bjorn': 0, 'Chloe': 0, 'Zak': 0 }
+    SCORE = [0] * len(players)
     font = pygame.font.SysFont(None, 24)
 
-    key_map = {
-        pygame.K_UP: playerOne.forward,
-        pygame.K_DOWN: playerOne.backward,
-        pygame.K_RIGHT: playerOne.right,
-        pygame.K_LEFT: playerOne.left,
-        pygame.K_RCTRL: playerOne.tag,
-        pygame.K_w: playerTwo.forward,
-        pygame.K_s: playerTwo.backward,
-        pygame.K_d: playerTwo.right,
-        pygame.K_a: playerTwo.left,
-        pygame.K_x: playerTwo.tag,
-        pygame.K_t: playerThree.forward,
-        pygame.K_g: playerThree.backward,
-        pygame.K_h: playerThree.right,
-        pygame.K_f: playerThree.left,
-        pygame.K_b: playerThree.tag
-    }
- 
+    key_bindings = [
+        {
+            'forward': K_UP,
+            'backward': K_DOWN,
+            'right': K_RIGHT,
+            'left': K_LEFT,
+            'tag': K_RCTRL,
+        },
+        {
+            'forward': K_w,
+            'backward': K_s,
+            'right': K_d,
+            'left': K_a,
+            'tag': K_c,
+        },
+        {
+            'forward': K_t,
+            'backward': K_g,
+            'right': K_h,
+            'left': K_f,
+            'tag': K_v,
+        },
+        {
+            'forward': K_i,
+            'backward': K_k,
+            'right': K_j,
+            'left': K_l,
+            'tag': K_m,
+        },
+        {
+            'forward': K_LEFTBRACKET,
+            'backward': K_QUOTE,
+            'right': K_RETURN,
+            'left': K_SEMICOLON,
+            'tag': K_SLASH,
+        },
+        {
+            'forward': K_z,
+            'backward': K_LALT,
+            'right': K_x,
+            'left': K_LSHIFT,
+            'tag': K_SPACE,
+        },
+    ]
+
+    key_map = {}
+    for i, _ in enumerate(players):
+        for key, val in key_bindings[i].items():
+            eval_string = 'players[{}].{}'.format(i, key)
+            print('eval: {}'.format(eval_string))
+            key_map[val] = eval(eval_string)
+
     player_event = PlayerEvent()
 
     while True:
@@ -358,12 +404,11 @@ def main():
                 .format(event))
             player_event.handle(event, key_map)
 
-        bjorn_score = font.render(str(SCORE['Bjorn']), True, BLUE)
-        chloe_score = font.render(str(SCORE['Chloe']), True, RED)
-        zak_score = font.render(str(SCORE['Zak']), True, GREEN)
-        surface.blit(bjorn_score, (540, 260))
-        surface.blit(chloe_score, (540, 240))
-        surface.blit(zak_score, (540, 220))
+        for i, _ in enumerate(players):
+                score = font.render(
+                    str(SCORE[i]), True, COLORS[PLAYER_COLORS[i]])
+                surface.blit(score, (540, 260 - 20 * i))
+
         ALL_SPRITES.update()
         TRIANGLE_SPRITES.draw(surface)
         TAG_SPRITES.draw(surface)
