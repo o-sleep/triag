@@ -26,13 +26,14 @@ ALL_SPRITES = pygame.sprite.Group()
 TAGGED_SPRITES = pygame.sprite.Group()
 TAG_SPRITES = pygame.sprite.Group()
 TRIANGLE_SPRITES = pygame.sprite.Group()
+LOOT_SPRITES = pygame.sprite.Group()
 SCORE = {}
 HEIGHT = 300
 WIDTH = 600
 BACKGROUND = "pink room dark.png"
 LOOT = None
-PLAYER_COUNT = 3
-
+PLAYER_COUNT = 2
+MAX_SCORE = 2
 
 def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
     """ Return the coordinates of a triangle based on the origin
@@ -115,8 +116,13 @@ def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
 
 
 class PlayerEvent():
-    def __init__(self, ):
+    def __init__(self, surface, font, win_counter):
         self.keys_down = {}
+
+        self.winner = None
+        self.win_counter = win_counter
+        self.font = font
+        self.surface = surface
 
     def handle(self, event, key_map):
         if pygame.QUIT == event.type:
@@ -140,6 +146,28 @@ class PlayerEvent():
         #for key in self.keys_down:
         #    key_map[key]()
         pass
+
+    def check_for_winner(self):
+        for i, val in enumerate(SCORE):
+            if val >= MAX_SCORE:
+                self.winner = i + 1
+                for i2, val2 in enumerate(SCORE):
+                    SCORE[i2] = 0
+
+        if self.winner:
+            self.win_counter -= 1
+
+        if self.win_counter < 60:
+            winbanner = self.font.render(
+                'Player {} won!'
+                .format(self.winner),
+                True,
+                COLORS[PLAYER_COLORS[self.winner - 1]])
+            self.surface.blit(winbanner, (240, 260))
+
+        if self.win_counter < 0:
+            self.winner = None
+            self.win_counter = 60
 
 
 class Triangle(pygame.sprite.Sprite):
@@ -306,9 +334,33 @@ class Loot(pygame.sprite.Sprite):
 
     """
 
-    def __init__(self):
-        print("Boost")
+    def __init__(self, loc, color):
+        super().__init__()
 
+        self.side = 50
+        self.centroid = (self.side // 2, self.side // 2)
+        self.color = color
+        self.border = 2
+
+        self.start_locations = {
+            1: (320, 160),
+        }
+
+        if loc == None:
+            self.loc = random.choice(list(self.start_locations.values()))
+        else:
+            self.loc = loc
+
+        self.image = pygame.Surface([self.side, self.side], pygame.SRCALPHA)
+        #self.image = pygame.Surface([self.side, self.side])
+        self.rect = self.image.get_rect(center=self.loc)
+
+        #pygame.draw.polygon(self.image, self.color,
+        #    coord(self.centroid, self.side // 3, 0), self.border)
+        pygame.draw.polygon(self.image, self.color,
+            ((0, 0), (0,10), (10, 10), (10,0)), self.border)
+        LOOT_SPRITES.add(self)
+        ALL_SPRITES.add(self)
 
 def _test():
     import doctest
@@ -388,15 +440,17 @@ def main():
     for i, _ in enumerate(players):
         for key, val in key_bindings[i].items():
             eval_string = 'players[{}].{}'.format(i, key)
-            print('eval: {}'.format(eval_string))
             key_map[val] = eval(eval_string)
 
-    player_event = PlayerEvent()
+    player_event = PlayerEvent(surface, font, 60)
+
+    #loot = Loot(None, COLORS['ORANGE'])
 
     while True:
         clock.tick(60)
         surface.blit(background, (0,0))
 
+        player_event.check_for_winner()
         player_event.call_keys_down(key_map)
 
         for event in pygame.event.get():
@@ -412,6 +466,7 @@ def main():
         ALL_SPRITES.update()
         TRIANGLE_SPRITES.draw(surface)
         TAG_SPRITES.draw(surface)
+        LOOT_SPRITES.draw(surface)
         pygame.display.update()
 
 
