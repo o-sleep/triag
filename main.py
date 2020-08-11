@@ -27,13 +27,14 @@ TAGGED_SPRITES = pygame.sprite.Group()
 TAG_SPRITES = pygame.sprite.Group()
 TRIANGLE_SPRITES = pygame.sprite.Group()
 LOOT_SPRITES = pygame.sprite.Group()
+
 SCORE = {}
 HEIGHT = 300
 WIDTH = 600
 BACKGROUND = "pink room dark.png"
 LOOT = None
 PLAYER_COUNT = 2
-MAX_SCORE = 2
+MAX_SCORE = 5
 
 def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
     """ Return the coordinates of a triangle based on the origin
@@ -182,10 +183,12 @@ class Triangle(pygame.sprite.Sprite):
         self.speed = 5
         self.turn = 4
         self.border = 2
+        self.tag_range = 200
 
         self.color = color
         self.cooldown = 60
         self.cooldown_i = self.cooldown
+        self.upgrade_timer = 0
 
         self.stats = {
             'fragmented': 0,
@@ -263,11 +266,13 @@ class Triangle(pygame.sprite.Sprite):
             self.rect.move_ip(int(x), int(y))
 
     def tag(self):
-        orient = coord(self.centroid, self.side, self.aim)[0]
-        target = (int(self.rect.x + orient[0] * self.rect.x/abs(self.rect.x)),
-            int(self.rect.y + orient[1] * self.rect.y/abs(self.rect.y)))
-        Tag(target, 5, 5 * self.border, self.color, self.aim, 5, 200, 
-            self.name)
+        if self not in TAGGED_SPRITES:
+            orient = coord(self.centroid, self.side, self.aim)[0]
+            target = (
+                int(self.rect.x + orient[0] * self.rect.x/abs(self.rect.x)),
+                int(self.rect.y + orient[1] * self.rect.y/abs(self.rect.y)))
+            Tag(target, 5, 5 * self.border, self.color, self.aim, 5,
+                self.tag_range, self.name)
 
     def update(self):
         if self in TAGGED_SPRITES:
@@ -275,12 +280,21 @@ class Triangle(pygame.sprite.Sprite):
                 self.respawn()
                 self.cooldown_i = self.cooldown
             self.cooldown_i -= 1
+        if self.upgrade_timer < 0:
+            self.tag_range = 200
+            self.border = 2
+        self.upgrade_timer -= 1
 
     def respawn(self):
         self.kill()
         TRIANGLE_SPRITES.add(self)
         ALL_SPRITES.add(self)
         self.rect.center = random.choice(list(self.start_locations.values()))
+
+    def upgrade(self, timer, upgrade_type):
+        self.tag_range *= 2
+        self.upgrade_timer = timer
+        self.border = 4
 
 class Tag(pygame.sprite.Sprite):
     """ The base logic of how one Triangle will Tag another Triangle.  When
@@ -337,13 +351,19 @@ class Loot(pygame.sprite.Sprite):
     def __init__(self, loc, color):
         super().__init__()
 
-        self.side = 50
+        self.side = 10
         self.centroid = (self.side // 2, self.side // 2)
         self.color = color
         self.border = 2
+        self.dir = 0
+        self.speed = 10
 
         self.start_locations = {
             1: (320, 160),
+            2: (240, 120),
+            3: (400, 200),
+            2: (400, 120),
+            3: (240, 200),
         }
 
         if loc == None:
@@ -351,16 +371,31 @@ class Loot(pygame.sprite.Sprite):
         else:
             self.loc = loc
 
-        self.image = pygame.Surface([self.side, self.side], pygame.SRCALPHA)
-        #self.image = pygame.Surface([self.side, self.side])
-        self.rect = self.image.get_rect(center=self.loc)
+        self.base_image = pygame.Surface(
+            [self.side, self.side], pygame.SRCALPHA)
+        #self.base_image = pygame.Surface([self.side, self.side])
+        self.rect = self.base_image.get_rect(center=self.loc)
 
-        #pygame.draw.polygon(self.image, self.color,
-        #    coord(self.centroid, self.side // 3, 0), self.border)
-        pygame.draw.polygon(self.image, self.color,
-            ((0, 0), (0,10), (10, 10), (10,0)), self.border)
+        sub_side = self.side - self.border
+        pygame.draw.polygon(self.base_image, self.color,
+            ((0, 0), (0, sub_side), (sub_side, sub_side), (sub_side, 0)),
+            self.border)
         LOOT_SPRITES.add(self)
         ALL_SPRITES.add(self)
+
+    def update(self):
+        looters = pygame.sprite.spritecollide(self, TRIANGLE_SPRITES, False)
+        if len(looters) > 0:
+            for looter in looters:
+                looter.upgrade(200, 'range')
+            self.kill()
+            self = None
+        else:
+            center_orig = self.rect.center
+            self.dir += self.speed
+            self.image = pygame.transform.rotate(self.base_image, self.dir)
+            self.rect = self.image.get_rect()
+            self.rect.center = center_orig
 
 def _test():
     import doctest
@@ -443,10 +478,13 @@ def main():
             key_map[val] = eval(eval_string)
 
     player_event = PlayerEvent(surface, font, 60)
-
-    #loot = Loot(None, COLORS['ORANGE'])
+    loot = None
 
     while True:
+
+        if len(LOOT_SPRITES) == 0:
+            loot = Loot(None, COLORS['ORANGE'])
+
         clock.tick(60)
         surface.blit(background, (0,0))
 
