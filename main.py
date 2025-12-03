@@ -56,8 +56,8 @@ def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
 
     # The directional vertex.  It's the closest vertex in the
     # direction of aim degrees (given y is inverted).
-    x1 = int(math.sin(math.radians(aim)) * h)
-    y1 = int(math.cos(math.radians(aim)) * h)
+    x1 = int(math.cos(math.radians(aim)) * h)
+    y1 = int(math.sin(math.radians(aim)) * h)
     
     # We are creating an equalateral triangle, we can assume all corners
     # are 60 deg.  Another triangle bounded by h, (x1, x2), the centroid,
@@ -90,8 +90,8 @@ def coord(centroid, median, aim) -> [(int, int), (int, int), (int, int)]:
     # vertex of one side of Triangle
     #x2 = int(math.cos(math.radians(angle2)) * triangle_side)
     #y2 = int(math.sin(math.radians(angle2)) * triangle_side)
-    x2 = int(math.sin(math.radians(angle2)) * h)
-    y2 = int(math.cos(math.radians(angle2)) * h)
+    x2 = int(math.cos(math.radians(angle2)) * h)
+    y2 = int(math.sin(math.radians(angle2)) * h)
 
     # vertex of the other side of Triangle
     x3 = int(math.cos(math.radians(angle3)) * h)
@@ -242,8 +242,8 @@ class Triangle(pygame.sprite.Sprite):
             coord(self.centroid, self.side // 3, self.aim), self.border)
 
     def forward(self):
-        x = math.sin(math.radians(self.aim)) * self.speed
-        y = math.cos(math.radians(self.aim)) * self.speed
+        x = math.cos(math.radians(self.aim)) * self.speed
+        y = math.sin(math.radians(self.aim)) * self.speed
         logging.debug('move forward: {} {} in {}'
             .format(x, y, self.aim))
         if self.rect.x + x + 60 < WIDTH \
@@ -254,8 +254,8 @@ class Triangle(pygame.sprite.Sprite):
             self.rect.move_ip(int(x), int(y))
 
     def backward(self):
-        x = -math.sin(math.radians(self.aim)) * self.speed
-        y = -math.cos(math.radians(self.aim)) * self.speed
+        x = -math.cos(math.radians(self.aim)) * self.speed
+        y = -math.sin(math.radians(self.aim)) * self.speed
         logging.debug("move back: {} {} in {}"
             .format(x, y, self.aim))
         if self.rect.x + x + 60 < WIDTH \
@@ -333,8 +333,8 @@ class Tag(pygame.sprite.Sprite):
                 ALL_SPRITES.add(sprite)
 
         if self.progress < self.distance:
-            x = math.sin(math.radians(self.aim)) * self.speed
-            y = math.cos(math.radians(self.aim)) * self.speed
+            x = math.cos(math.radians(self.aim)) * self.speed
+            y = math.sin(math.radians(self.aim)) * self.speed
 
             self.rect.move_ip(int(x), int(y))
             self.progress += self.speed
